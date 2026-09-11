@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>HOP SHOW · Currumbin · 3D Sell-Pack</title>
+  <meta name="robots" content="noindex,nofollow" />
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0c10; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color: #e8ecef; }
+    #c { display: block; width: 100%; height: 100%; touch-action: none; }
+    #hud {
+      position: fixed; inset: 0; pointer-events: none; z-index: 10;
+      display: grid; grid-template-rows: auto 1fr auto;
+    }
+    .bar {
+      pointer-events: auto;
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+      padding: 10px 14px; background: linear-gradient(180deg, rgba(8,10,14,.92), rgba(8,10,14,.55));
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      backdrop-filter: blur(8px);
+    }
+    .bar.bottom {
+      background: linear-gradient(0deg, rgba(8,10,14,.94), rgba(8,10,14,.4));
+      border-bottom: 0; border-top: 1px solid rgba(255,255,255,.08);
+      justify-content: space-between;
+    }
+    .brand { font-weight: 700; letter-spacing: .04em; font-size: 13px; }
+    .brand span { color: #c8f542; }
+    .chip {
+      font-size: 11px; padding: 5px 10px; border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.05);
+      color: #cfd6dd; cursor: pointer; pointer-events: auto;
+    }
+    .chip:hover, .chip.on { border-color: #c8f542; color: #c8f542; background: rgba(200,245,66,.08); }
+    .meta { font-size: 11px; color: #9aa3ad; }
+    #legend {
+      position: absolute; left: 14px; bottom: 64px; width: min(320px, calc(100vw - 28px));
+      pointer-events: none; padding: 12px 14px; border-radius: 12px;
+      background: rgba(10,12,16,.78); border: 1px solid rgba(255,255,255,.08);
+      font-size: 12px; line-height: 1.45;
+    }
+    #legend h3 { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #c8f542; margin-bottom: 6px; }
+    #legend strong { color: #fff; font-weight: 600; }
+    #toast {
+      position: absolute; top: 64px; left: 50%; transform: translateX(-50%);
+      padding: 8px 14px; border-radius: 8px; background: rgba(200,245,66,.12);
+      border: 1px solid rgba(200,245,66,.35); color: #c8f542; font-size: 12px;
+      opacity: 0; transition: opacity .25s; pointer-events: none;
+    }
+    #toast.show { opacity: 1; }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <div id="hud">
+    <div class="bar">
+      <div class="brand">HOP SHOW · <span>CURRUMBIN</span> · 3D SELL-PACK</div>
+      <button class="chip on" data-cam="orbit">Orbit</button>
+      <button class="chip" data-cam="broadcast">Broadcast</button>
+      <button class="chip" data-cam="bleacher">Bleacher</button>
+      <button class="chip" data-cam="wall_l">WALL_L</button>
+      <button class="chip" data-cam="wall_r">WALL_R</button>
+      <button class="chip" data-cam="wall_back">WALL_BACK</button>
+      <button class="chip" data-cam="walk">Walk-in</button>
+    </div>
+    <div id="toast"></div>
+    <div id="legend">
+      <h3>Ad zones · sample slides</h3>
+      <div><strong>WALL_L / WALL_R</strong> — 1 Curt LED each side (3×2 m)</div>
+      <div><strong>WALL_BACK</strong> — 5 m Curt LED end bank</div>
+      <div><strong>BLEACHER</strong> · high packed at photo vantage · Curt + 2× Phantom</div>
+      <div class="meta" style="margin-top:8px">Indoor warehouse · House of Pickle Currumbin · LAN only · SAMPLE slides not live rates</div>
+    </div>
+    <div class="bar bottom">
+      <div class="meta">Drag orbit · scroll zoom · right-drag pan · LEDs cycle sample packages</div>
+      <div class="meta" id="clock"></div>
+    </div>
+  </div>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
