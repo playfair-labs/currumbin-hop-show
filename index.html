@@ -78,6 +78,10 @@
       opacity: 0; transition: opacity .25s; pointer-events: none; white-space: nowrap;
     }
     #toast.show { opacity: 1; }
+    @media (max-width: 540px) {
+      #legend { font-size: 11px; padding: 8px 10px; bottom: 52px; }
+      #legend .extra { display: none; }
+    }
     #boot-fail {
       display: none; position: fixed; inset: 0; z-index: 20;
       align-items: center; justify-content: center; text-align: center;

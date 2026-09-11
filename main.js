@@ -95,8 +95,8 @@ scene.fog = null;
 
 const camera = new THREE.PerspectiveCamera(52, 1, 0.12, 180);
 const PHOTO = {
-  pos: new THREE.Vector3(8.4, 5.8, 11.8),
-  target: new THREE.Vector3(0, 1.4, -2.2),
+  pos: new THREE.Vector3(10.2, 6.8, 14.2),
+  target: new THREE.Vector3(0, 1.35, -1.6),
 };
 camera.position.copy(PHOTO.pos);
 
@@ -225,7 +225,7 @@ const padel = new THREE.Group();
 const PADEL_L = 20;
 const PADEL_W = 10;
 padel.position.set(0, 0, -(COURT_W / 2 + 1.2 + PADEL_W / 2 + 0.8));
-const padelFloor = new THREE.Mesh(new THREE.PlaneGeometry(PADEL_L, PADEL_W), mat(0x2f6b4a));
+const padelFloor = new THREE.Mesh(new THREE.PlaneGeometry(PADEL_L, PADEL_W), mat(0x2a5f8a, { roughness: 0.9 }));
 padelFloor.rotation.x = -Math.PI / 2;
 padelFloor.position.y = 0.008;
 padel.add(padelFloor);
@@ -515,6 +515,7 @@ function fitRenderer() {
     el.style.top = `${top}px`;
   }
   camera.aspect = w / h;
+  camera.fov = h > w ? 64 : 52;
   camera.updateProjectionMatrix();
 }
 
