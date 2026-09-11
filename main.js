@@ -95,8 +95,8 @@ scene.fog = null;
 
 const camera = new THREE.PerspectiveCamera(52, 1, 0.12, 180);
 const PHOTO = {
-  pos: new THREE.Vector3(5.4, 6.6, 13.2),
-  target: new THREE.Vector3(0, 1.35, -1.2),
+  pos: new THREE.Vector3(8.4, 5.8, 11.8),
+  target: new THREE.Vector3(0, 1.4, -2.2),
 };
 camera.position.copy(PHOTO.pos);
 
@@ -117,9 +117,9 @@ controls.touches.ONE = THREE.TOUCH.ROTATE;
 controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
 controls.update();
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.72));
-scene.add(new THREE.HemisphereLight(0xf2f6ff, 0x3d5a38, 0.55));
-const key = new THREE.DirectionalLight(0xfff5e6, 1.05);
+scene.add(new THREE.AmbientLight(0xffffff, 0.88));
+scene.add(new THREE.HemisphereLight(0xf7fbff, 0x4a6a42, 0.7));
+const key = new THREE.DirectionalLight(0xfff5e6, 1.18);
 key.position.set(8, 14, 6);
 key.castShadow = !IS_IOS;
 if (key.castShadow) {
@@ -127,9 +127,12 @@ if (key.castShadow) {
   Object.assign(key.shadow.camera, { left: -20, right: 20, top: 20, bottom: -20, near: 1, far: 50 });
 }
 scene.add(key);
-const fill = new THREE.DirectionalLight(0xd7e7ff, 0.38);
+const fill = new THREE.DirectionalLight(0xd7e7ff, 0.52);
 fill.position.set(-10, 8, -6);
 scene.add(fill);
+const bounce = new THREE.DirectionalLight(0xfff8ee, 0.28);
+bounce.position.set(2, 5, 14);
+scene.add(bounce);
 
 function mat(color, opts = {}) {
   return new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0.05, ...opts });
@@ -169,16 +172,16 @@ const lineMat = mat(0xf5f7fa, { roughness: 0.55 });
 function line(w, h, x, z) {
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), lineMat);
   m.rotation.x = -Math.PI / 2;
-  m.position.set(x, 0.015, z);
+  m.position.set(x, 0.02, z);
   courtGroup.add(m);
 }
-line(COURT_L, 0.05, 0, COURT_W / 2);
-line(COURT_L, 0.05, 0, -COURT_W / 2);
-line(0.05, COURT_W, COURT_L / 2, 0);
-line(0.05, COURT_W, -COURT_L / 2, 0);
-line(0.05, COURT_W, 0, 0);
-line(COURT_L, 0.04, 0, KITCHEN);
-line(COURT_L, 0.04, 0, -KITCHEN);
+line(COURT_L, 0.08, 0, COURT_W / 2);
+line(COURT_L, 0.08, 0, -COURT_W / 2);
+line(0.08, COURT_W, COURT_L / 2, 0);
+line(0.08, COURT_W, -COURT_L / 2, 0);
+line(0.08, COURT_W, 0, 0);
+line(COURT_L, 0.07, 0, KITCHEN);
+line(COURT_L, 0.07, 0, -KITCHEN);
 
 for (const z of [-COURT_W / 2 - 0.05, COURT_W / 2 + 0.05]) {
   const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.91, 12), mat(0x222222));
@@ -317,30 +320,53 @@ const label = makeLabel('COURT 1');
 label.position.set(-HALL_L / 2 + 0.25, 3.5, 0);
 label.rotation.y = Math.PI / 2;
 scene.add(label);
+const padelLabel = makeLabel('PADEL');
+padelLabel.position.set(-HALL_L / 2 + 0.25, 3.5, -(COURT_W / 2 + 1.2 + PADEL_W / 2 + 0.8));
+padelLabel.rotation.y = Math.PI / 2;
+scene.add(padelLabel);
 
 const ledScreens = [];
 function makeLed(w, h, x, y, z, rotY, zone, map) {
-  const frame = new THREE.Mesh(new THREE.BoxGeometry(w + 0.1, h + 0.1, 0.14), mat(0x111111, { metalness: 0.6, roughness: 0.4 }));
+  const frameMat = mat(0x111111, { metalness: 0.6, roughness: 0.4 });
+  const rim = 0.07;
+  const depth = 0.1;
+  const frame = new THREE.Group();
+  [
+    [w + rim * 2, rim, 0, (h + rim) / 2],
+    [w + rim * 2, rim, 0, -(h + rim) / 2],
+    [rim, h, -(w + rim) / 2, 0],
+    [rim, h, (w + rim) / 2, 0],
+  ].forEach(([bw, bh, lx, ly]) => {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, depth), frameMat);
+    bar.position.set(lx, ly, 0);
+    bar.castShadow = true;
+    frame.add(bar);
+  });
   frame.position.set(x, y, z);
   frame.rotation.y = rotY;
-  frame.castShadow = true;
   scene.add(frame);
-  const screen = new THREE.Mesh(
-    new THREE.PlaneGeometry(w, h),
-    new THREE.MeshBasicMaterial({ map, toneMapped: false, side: THREE.DoubleSide })
-  );
+
+  const ledMat = new THREE.MeshBasicMaterial({ map, toneMapped: false });
   const n = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), rotY);
-  screen.position.set(x, y, z).addScaledVector(n, 0.08);
-  screen.rotation.y = rotY;
-  scene.add(screen);
-  ledScreens.push({ mesh: screen, zone, slide: 0 });
-  return screen;
+  const front = new THREE.Mesh(new THREE.PlaneGeometry(w, h), ledMat);
+  front.position.set(x, y, z).addScaledVector(n, 0.06);
+  front.rotation.y = rotY;
+  scene.add(front);
+  const back = new THREE.Mesh(new THREE.PlaneGeometry(w, h), ledMat);
+  back.position.set(x, y, z).addScaledVector(n, -0.06);
+  back.rotation.y = rotY + Math.PI;
+  scene.add(back);
+  ledScreens.push({ meshes: [front, back], zone, slide: 0 });
+  return front;
 }
 
 const sideY = 2.7;
-makeLed(3.0, 2.0, 0, sideY, -(COURT_W / 2 + 1.35), 0, 'WALL_L', screenTex.WALL_L);
-makeLed(3.0, 2.0, 0, sideY, (COURT_W / 2 + 1.35), Math.PI, 'WALL_R', screenTex.WALL_R);
-makeLed(5.0, 2.6, -HALL_L / 2 + 0.4, 3.1, 0, Math.PI / 2, 'WALL_BACK', screenTex.WALL_BACK);
+const WALL_L_POS = { x: 4.0, y: sideY, z: -(COURT_W / 2 + 1.35) };
+const WALL_R_POS = { x: -4.0, y: sideY, z: COURT_W / 2 + 1.35 };
+const WALL_BACK_POS = { x: -HALL_L / 2 + 0.4, y: 3.1, z: 0 };
+makeLed(3.0, 2.0, WALL_L_POS.x, WALL_L_POS.y, WALL_L_POS.z, 0, 'WALL_L', screenTex.WALL_L);
+makeLed(3.0, 2.0, WALL_R_POS.x, WALL_R_POS.y, WALL_R_POS.z, Math.PI, 'WALL_R', screenTex.WALL_R);
+makeLed(5.0, 2.6, WALL_BACK_POS.x, WALL_BACK_POS.y, WALL_BACK_POS.z, Math.PI / 2, 'WALL_BACK', screenTex.WALL_BACK);
 
 const bleacher = new THREE.Group();
 const rows = 8;
@@ -348,8 +374,11 @@ const bleachZ0 = HALL_W / 2 - 2.1;
 for (let row = 0; row < rows; row++) {
   const step = new THREE.Mesh(
     new THREE.BoxGeometry(16, 0.28, 0.85),
-    mat(row % 2 ? 0x2e333a : 0x3a4048, { roughness: 0.78 })
+    mat(row % 2 ? 0x7a828c : 0x9aa2ac, { roughness: 0.72 })
   );
+  const nose = new THREE.Mesh(new THREE.BoxGeometry(16, 0.04, 0.08), mat(0xd8dce0, { roughness: 0.45 }));
+  nose.position.set(0, 0.16, 0.4);
+  step.add(nose);
   step.position.set(0, 0.35 + row * 0.48, bleachZ0 - row * 0.72);
   step.castShadow = true;
   step.receiveShadow = true;
@@ -406,20 +435,20 @@ const presets = {
     target: new THREE.Vector3(0, 1.0, 0),
   },
   bleacher: {
-    pos: new THREE.Vector3(0, 6.4, bleachZ0 + 0.15),
-    target: new THREE.Vector3(0, 1.2, 0),
+    pos: new THREE.Vector3(0, 7.15, bleachZ0 + 0.85),
+    target: new THREE.Vector3(0, 1.25, -0.4),
   },
   wall_l: {
-    pos: new THREE.Vector3(0, 2.9, -(COURT_W / 2 + 1.35) + 4),
-    target: new THREE.Vector3(0, 2.5, -(COURT_W / 2 + 1.35)),
+    pos: new THREE.Vector3(WALL_L_POS.x, 2.9, WALL_L_POS.z + 4),
+    target: new THREE.Vector3(WALL_L_POS.x, 2.5, WALL_L_POS.z),
   },
   wall_r: {
-    pos: new THREE.Vector3(0, 2.9, (COURT_W / 2 + 1.35) - 4),
-    target: new THREE.Vector3(0, 2.5, COURT_W / 2 + 1.35),
+    pos: new THREE.Vector3(WALL_R_POS.x, 2.9, WALL_R_POS.z - 4),
+    target: new THREE.Vector3(WALL_R_POS.x, 2.5, WALL_R_POS.z),
   },
   wall_back: {
-    pos: new THREE.Vector3(-HALL_L / 2 + 7, 3.3, 0),
-    target: new THREE.Vector3(-HALL_L / 2 + 0.4, 3.1, 0),
+    pos: new THREE.Vector3(WALL_BACK_POS.x + 6.6, 3.3, 0),
+    target: new THREE.Vector3(WALL_BACK_POS.x, 3.1, 0),
   },
   walk: {
     pos: new THREE.Vector3(HALL_L / 2 - 5.5, 1.7, 6),
@@ -450,8 +479,10 @@ function tickSlides(dt) {
   slideTimer = 0;
   ledScreens.forEach((led, i) => {
     led.slide = (led.slide + 1 + i) % cyclePool.length;
-    led.mesh.material.map = cyclePool[led.slide];
-    led.mesh.material.needsUpdate = true;
+    led.meshes.forEach((mesh) => {
+      mesh.material.map = cyclePool[led.slide];
+      mesh.material.needsUpdate = true;
+    });
   });
 }
 
