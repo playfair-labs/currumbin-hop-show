@@ -3,40 +3,68 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0c10" />
   <title>HOP SHOW · Currumbin · 3D Sell-Pack</title>
   <meta name="robots" content="noindex,nofollow" />
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0c10; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color: #e8ecef; }
-    #c { display: block; width: 100%; height: 100%; touch-action: none; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      background: #0a0c10;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      color: #e8ecef;
+      touch-action: none;
+    }
+    #c, #orbit-hit {
+      position: fixed; left: 0; top: 0;
+      width: 100%; height: 100%;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    #c { display: block; z-index: 0; }
+    /* Near-clear fill so iOS hit-tests this layer (empty/transparent often gets 0 touches). */
+    #orbit-hit {
+      z-index: 1;
+      background: rgba(0, 0, 0, 0.003);
+      cursor: grab;
+    }
+    #orbit-hit:active { cursor: grabbing; }
     #hud {
-      position: fixed; inset: 0; pointer-events: none; z-index: 10;
-      display: grid; grid-template-rows: auto 1fr auto;
+      position: fixed; inset: 0; z-index: 2;
+      pointer-events: none;
     }
     .bar {
       pointer-events: auto;
-      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
-      padding: 10px 14px; background: linear-gradient(180deg, rgba(8,10,14,.92), rgba(8,10,14,.55));
+      display: flex; flex-wrap: nowrap; gap: 8px; align-items: center;
+      padding: 10px 14px;
+      padding-left: max(14px, env(safe-area-inset-left));
+      padding-right: max(14px, env(safe-area-inset-right));
+      background: linear-gradient(180deg, rgba(8,10,14,.94), rgba(8,10,14,.55));
       border-bottom: 1px solid rgba(255,255,255,.08);
-      backdrop-filter: blur(8px);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
     }
     .bar.bottom {
-      background: linear-gradient(0deg, rgba(8,10,14,.94), rgba(8,10,14,.4));
+      position: absolute; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(0deg, rgba(8,10,14,.96), rgba(8,10,14,.4));
       border-bottom: 0; border-top: 1px solid rgba(255,255,255,.08);
       justify-content: space-between;
+      padding-bottom: max(10px, env(safe-area-inset-bottom));
     }
-    .brand { font-weight: 700; letter-spacing: .04em; font-size: 13px; }
+    .brand { font-weight: 700; letter-spacing: .04em; font-size: 13px; white-space: nowrap; }
     .brand span { color: #c8f542; }
     .chip {
       font-size: 11px; padding: 5px 10px; border-radius: 999px;
       border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.05);
-      color: #cfd6dd; cursor: pointer; pointer-events: auto;
+      color: #cfd6dd; cursor: pointer; white-space: nowrap; flex: 0 0 auto;
     }
     .chip:hover, .chip.on { border-color: #c8f542; color: #c8f542; background: rgba(200,245,66,.08); }
     .meta { font-size: 11px; color: #9aa3ad; }
     #legend {
-      position: absolute; left: 14px; bottom: 64px; width: min(320px, calc(100vw - 28px));
+      position: absolute; left: max(14px, env(safe-area-inset-left)); bottom: 64px;
+      width: min(320px, calc(100vw - 28px));
       pointer-events: none; padding: 12px 14px; border-radius: 12px;
       background: rgba(10,12,16,.78); border: 1px solid rgba(255,255,255,.08);
       font-size: 12px; line-height: 1.45;
@@ -47,21 +75,28 @@
       position: absolute; top: 64px; left: 50%; transform: translateX(-50%);
       padding: 8px 14px; border-radius: 8px; background: rgba(200,245,66,.12);
       border: 1px solid rgba(200,245,66,.35); color: #c8f542; font-size: 12px;
-      opacity: 0; transition: opacity .25s; pointer-events: none;
+      opacity: 0; transition: opacity .25s; pointer-events: none; white-space: nowrap;
     }
     #toast.show { opacity: 1; }
+    #boot-fail {
+      display: none; position: fixed; inset: 0; z-index: 20;
+      align-items: center; justify-content: center; text-align: center;
+      padding: 24px; background: #0a0c10; color: #e8ecef;
+    }
+    #boot-fail.show { display: flex; }
+    #boot-fail strong { color: #c8f542; }
   </style>
   <script type="importmap">
   {
     "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      "three": "./vendor/three.module.js"
     }
   }
   </script>
 </head>
 <body>
   <canvas id="c"></canvas>
+  <div id="orbit-hit" aria-hidden="true"></div>
   <div id="hud">
     <div class="bar">
       <div class="brand">HOP SHOW · <span>CURRUMBIN</span> · 3D SELL-PACK</div>
@@ -79,12 +114,15 @@
       <div><strong>WALL_L / WALL_R</strong> — 1 Curt LED each side (3×2 m)</div>
       <div><strong>WALL_BACK</strong> — 5 m Curt LED end bank</div>
       <div><strong>BLEACHER</strong> · high packed at photo vantage · Curt + 2× Phantom</div>
-      <div class="meta" style="margin-top:8px">Indoor warehouse · House of Pickle Currumbin · SAMPLE slides not live rates</div>
+      <div class="meta extra" style="margin-top:8px">Indoor warehouse · House of Pickle Currumbin · public Pages · SAMPLE slides not live rates</div>
     </div>
     <div class="bar bottom">
-      <div class="meta">Drag orbit · scroll zoom · right-drag pan · LEDs cycle sample packages</div>
+      <div class="meta">Drag to orbit · pinch zoom · LEDs cycle sample packages</div>
       <div class="meta" id="clock"></div>
     </div>
+  </div>
+  <div id="boot-fail">
+    <div><strong>HOP SHOW</strong><br />This browser could not start the 3D sell-pack.</div>
   </div>
   <script type="module" src="./main.js"></script>
 </body>

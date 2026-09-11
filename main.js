@@ -1,21 +1,63 @@
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { OrbitControls } from './vendor/OrbitControls.js';
 
 const canvas = document.getElementById('c');
+const orbitHit = document.getElementById('orbit-hit');
 const clockEl = document.getElementById('clock');
 const toastEl = document.getElementById('toast');
+const bootFail = document.getElementById('boot-fail');
 
 /** Ads glossary — SAMPLE creatives only (not live pitch / not locked rates) */
 const SCREEN_MAP = {
-  WALL_L: 'assets/sponsors/WALL_L.png',         // 1× 3×2 m side Curt
-  WALL_R: 'assets/sponsors/WALL_R.png',         // 1× 3×2 m side Curt
-  WALL_BACK: 'assets/sponsors/WALL_BACK.png',   // 5 m back Curt
+  WALL_L: 'assets/sponsors/WALL_L.png',
+  WALL_R: 'assets/sponsors/WALL_R.png',
+  WALL_BACK: 'assets/sponsors/WALL_BACK.png',
 };
+
+const IS_IOS =
+  /iP(hone|od|ad)/.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+function toast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => toastEl.classList.remove('show'), 1800);
+}
+
+function fail(msg) {
+  bootFail.classList.add('show');
+  bootFail.querySelector('div').innerHTML = `<strong>HOP SHOW</strong><br />${msg}`;
+}
+
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({
+    canvas,
+    antialias: !IS_IOS,
+    alpha: false,
+    stencil: false,
+    powerPreference: 'high-performance',
+  });
+} catch (err) {
+  fail('WebGL is required for the 3D sell-pack.');
+  throw err;
+}
+
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.NoToneMapping;
+renderer.shadowMap.enabled = !IS_IOS;
+renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.setClearColor(0x0a0c10, 1);
 
 const loader = new THREE.TextureLoader();
 function tex(url) {
   const t = loader.load(url);
   t.colorSpace = THREE.SRGBColorSpace;
+  t.generateMipmaps = false;
+  t.minFilter = THREE.LinearFilter;
+  t.magFilter = THREE.LinearFilter;
+  t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
   return t;
 }
 const screenTex = {
@@ -38,69 +80,66 @@ const cyclePool = [
   tex('assets/sponsors/slide-feed-stack.png'),
 ];
 
-function toast(msg) {
-  toastEl.textContent = msg;
-  toastEl.classList.add('show');
-  clearTimeout(toast._t);
-  toast._t = setTimeout(() => toastEl.classList.remove('show'), 1800);
-}
-
 // Pickleball court 13.41 × 6.10 m — SHOW court beside padel (padel at -Z)
 const COURT_L = 13.41;
 const COURT_W = 6.1;
 const KITCHEN = 2.13;
-const HALL_L = 32;
-const HALL_W = 22;
+const HALL_L = 36;
+const HALL_W = 38;
 const WALL_H = 7.5;
 const EAVES = 9.0;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xb6bec6);
-scene.fog = new THREE.Fog(0xb6bec6, 32, 62);
+scene.background = new THREE.Color(0x0a0c10);
+scene.fog = null;
 
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setSize(innerWidth, innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.08;
+const camera = new THREE.PerspectiveCamera(52, 1, 0.12, 180);
+const PHOTO = {
+  pos: new THREE.Vector3(5.4, 6.6, 13.2),
+  target: new THREE.Vector3(0, 1.35, -1.2),
+};
+camera.position.copy(PHOTO.pos);
 
-const camera = new THREE.PerspectiveCamera(52, innerWidth / innerHeight, 0.1, 140);
-// Photo vantage ≈ elevated bleacher side (+Z), looking toward COURT 1 + back wall
-camera.position.set(6.5, 8.2, 12.5);
-
-const controls = new OrbitControls(camera, canvas);
-controls.target.set(0, 1.1, 0);
+const controls = new OrbitControls(camera, orbitHit);
+controls.target.copy(PHOTO.target);
 controls.enableDamping = true;
-controls.maxPolarAngle = Math.PI * 0.49;
-controls.minDistance = 3;
-controls.maxDistance = 42;
+controls.dampingFactor = 0.08;
+controls.enablePan = true;
+controls.enableZoom = true;
+controls.enableRotate = true;
+controls.rotateSpeed = 0.92;
+controls.zoomSpeed = 0.9;
+controls.minDistance = 3.2;
+controls.maxDistance = 24;
+controls.minPolarAngle = 0.18;
+controls.maxPolarAngle = Math.PI * 0.48;
+controls.touches.ONE = THREE.TOUCH.ROTATE;
+controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
+controls.update();
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.58));
-scene.add(new THREE.HemisphereLight(0xe8f0ff, 0x4a5a3a, 0.42));
-const key = new THREE.DirectionalLight(0xfff5e6, 1.12);
-key.position.set(9, 15, 7);
-key.castShadow = true;
-key.shadow.mapSize.set(2048, 2048);
-Object.assign(key.shadow.camera, { left: -22, right: 22, top: 22, bottom: -22 });
+scene.add(new THREE.AmbientLight(0xffffff, 0.72));
+scene.add(new THREE.HemisphereLight(0xf2f6ff, 0x3d5a38, 0.55));
+const key = new THREE.DirectionalLight(0xfff5e6, 1.05);
+key.position.set(8, 14, 6);
+key.castShadow = !IS_IOS;
+if (key.castShadow) {
+  key.shadow.mapSize.set(1024, 1024);
+  Object.assign(key.shadow.camera, { left: -20, right: 20, top: 20, bottom: -20, near: 1, far: 50 });
+}
 scene.add(key);
-const fill = new THREE.DirectionalLight(0xcfe8ff, 0.32);
-fill.position.set(-12, 9, -5);
+const fill = new THREE.DirectionalLight(0xd7e7ff, 0.38);
+fill.position.set(-10, 8, -6);
 scene.add(fill);
 
 function mat(color, opts = {}) {
   return new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0.05, ...opts });
 }
 
-// Hall floor
 const floor = new THREE.Mesh(new THREE.PlaneGeometry(HALL_L, HALL_W), mat(0x3f8f5f, { roughness: 0.93 }));
 floor.rotation.x = -Math.PI / 2;
 floor.receiveShadow = true;
 scene.add(floor);
 
-// ——— SHOW COURT (Court 1) centered; padel to -Z ———
 const courtGroup = new THREE.Group();
 scene.add(courtGroup);
 
@@ -179,7 +218,6 @@ picketRail(COURT_L + 1.1, 0, -fz, 0);
 picketRail(COURT_W + 1.1, fx, 0, Math.PI / 2);
 picketRail(COURT_W + 1.1, -fx, 0, Math.PI / 2);
 
-// ——— PADEL (left / -Z of show court) ———
 const padel = new THREE.Group();
 const PADEL_L = 20;
 const PADEL_W = 10;
@@ -188,17 +226,22 @@ const padelFloor = new THREE.Mesh(new THREE.PlaneGeometry(PADEL_L, PADEL_W), mat
 padelFloor.rotation.x = -Math.PI / 2;
 padelFloor.position.y = 0.008;
 padel.add(padelFloor);
-// glass/mesh cage
-const cageMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.4, roughness: 0.55, transparent: true, opacity: 0.35, side: THREE.DoubleSide });
+const cageMat = new THREE.MeshStandardMaterial({
+  color: 0x111111, metalness: 0.4, roughness: 0.55, transparent: true, opacity: 0.35, side: THREE.DoubleSide,
+});
 const cageH = 3.2;
-[[PADEL_L, 0.08, 0, PADEL_W / 2], [PADEL_L, 0.08, 0, -PADEL_W / 2], [0.08, PADEL_W, PADEL_L / 2, 0], [0.08, PADEL_W, -PADEL_L / 2, 0]].forEach(([w, d, x, z]) => {
-  const pane = new THREE.Mesh(new THREE.BoxGeometry(w, cageH, d < 1 ? 0.06 : 0.06), cageMat);
+[
+  [PADEL_L, 0.06, 0, PADEL_W / 2],
+  [PADEL_L, 0.06, 0, -PADEL_W / 2],
+  [0.06, PADEL_W, PADEL_L / 2, 0],
+  [0.06, PADEL_W, -PADEL_L / 2, 0],
+].forEach(([w, d, x, z]) => {
+  const pane = new THREE.Mesh(new THREE.BoxGeometry(w, cageH, d), cageMat);
   pane.position.set(x, cageH / 2, z);
   padel.add(pane);
 });
 scene.add(padel);
 
-// Walls
 function wallPanel(w, h, x, y, z, rotY, color) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.18), mat(color, { roughness: 0.9 }));
   m.position.set(x, y, z);
@@ -218,14 +261,13 @@ wallPanel(HALL_L, metalH, 0, brickH + metalH / 2, -HALL_W / 2, 0, 0xe8e4d8);
 wallPanel(HALL_W, metalH, HALL_L / 2, brickH + metalH / 2, 0, Math.PI / 2, 0xc8ccd1);
 wallPanel(HALL_W, metalH, -HALL_L / 2, brickH + metalH / 2, 0, Math.PI / 2, 0xe8e4d8);
 
-// Roller door (right / +X wall)
 const door = new THREE.Mesh(new THREE.BoxGeometry(0.12, 4.2, 3.6), mat(0x6a7078, { metalness: 0.45, roughness: 0.5 }));
 door.position.set(HALL_L / 2 - 0.2, 2.1, 4.5);
 scene.add(door);
 
 for (let i = -5; i <= 5; i++) {
   const beam = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.38, HALL_W - 0.5), mat(0x6a727a, { metalness: 0.55, roughness: 0.45 }));
-  beam.position.set(i * 2.9, EAVES - 0.45, 0);
+  beam.position.set(i * 3.1, EAVES - 0.45, 0);
   beam.castShadow = true;
   scene.add(beam);
 }
@@ -233,7 +275,6 @@ const roof = new THREE.Mesh(new THREE.BoxGeometry(HALL_L + 0.6, 0.12, HALL_W + 0
 roof.position.y = EAVES;
 scene.add(roof);
 
-// Skylight strips
 for (let i = -2; i <= 2; i++) {
   const sky = new THREE.Mesh(
     new THREE.PlaneGeometry(HALL_L * 0.7, 1.1),
@@ -244,18 +285,14 @@ for (let i = -2; i <= 2; i++) {
   scene.add(sky);
 }
 
-for (let x = -10; x <= 10; x += 5) {
-  for (let z = -6; z <= 6; z += 6) {
-    const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.42, 0.12, 24), mat(0x222222));
+for (let x = -12; x <= 12; x += 8) {
+  for (let z = -10; z <= 10; z += 10) {
+    const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.42, 0.12, 16), mat(0x222222));
     lamp.position.set(x, EAVES - 1.0, z);
     scene.add(lamp);
-    const bulb = new THREE.PointLight(0xfff2dd, 0.48, 16, 2);
-    bulb.position.set(x, EAVES - 1.2, z);
-    scene.add(bulb);
   }
 }
 
-// Industrial fan
 const fan = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 0.08, 32), mat(0x1a1a1a, { metalness: 0.5 }));
 fan.position.set(-6, EAVES - 1.6, -2);
 scene.add(fan);
@@ -272,6 +309,8 @@ function makeLabel(text) {
   ctx.fillText(text, 256, 64);
   const texC = new THREE.CanvasTexture(c);
   texC.colorSpace = THREE.SRGBColorSpace;
+  texC.generateMipmaps = false;
+  texC.minFilter = THREE.LinearFilter;
   return new THREE.Mesh(new THREE.PlaneGeometry(4.2, 1.05), new THREE.MeshBasicMaterial({ map: texC, transparent: true }));
 }
 const label = makeLabel('COURT 1');
@@ -279,7 +318,6 @@ label.position.set(-HALL_L / 2 + 0.25, 3.5, 0);
 label.rotation.y = Math.PI / 2;
 scene.add(label);
 
-// ——— Curt LEDs HARD LOCK: 1× 3×2m each side + 5m back = 3 screens ———
 const ledScreens = [];
 function makeLed(w, h, x, y, z, rotY, zone, map) {
   const frame = new THREE.Mesh(new THREE.BoxGeometry(w + 0.1, h + 0.1, 0.14), mat(0x111111, { metalness: 0.6, roughness: 0.4 }));
@@ -289,54 +327,50 @@ function makeLed(w, h, x, y, z, rotY, zone, map) {
   scene.add(frame);
   const screen = new THREE.Mesh(
     new THREE.PlaneGeometry(w, h),
-    new THREE.MeshBasicMaterial({ map, toneMapped: false })
+    new THREE.MeshBasicMaterial({ map, toneMapped: false, side: THREE.DoubleSide })
   );
   const n = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), rotY);
   screen.position.set(x, y, z).addScaledVector(n, 0.08);
   screen.rotation.y = rotY;
   scene.add(screen);
-  const wash = new THREE.PointLight(0x88ff66, 0.3, 7, 2);
-  wash.position.copy(screen.position).addScaledVector(n, 0.45);
-  scene.add(wash);
   ledScreens.push({ mesh: screen, zone, slide: 0 });
   return screen;
 }
 
 const sideY = 2.7;
-// Long sides of show court (along X): one LED each — facing inward to court
-makeLed(3.0, 2.0, 0, sideY, -(COURT_W / 2 + 1.35), 0, 'WALL_L', screenTex.WALL_L);       // padel side
-makeLed(3.0, 2.0, 0, sideY, (COURT_W / 2 + 1.35), Math.PI, 'WALL_R', screenTex.WALL_R); // bleacher side
-// Back 5 m on -X wall behind Court 1
+makeLed(3.0, 2.0, 0, sideY, -(COURT_W / 2 + 1.35), 0, 'WALL_L', screenTex.WALL_L);
+makeLed(3.0, 2.0, 0, sideY, (COURT_W / 2 + 1.35), Math.PI, 'WALL_R', screenTex.WALL_R);
 makeLed(5.0, 2.6, -HALL_L / 2 + 0.4, 3.1, 0, Math.PI / 2, 'WALL_BACK', screenTex.WALL_BACK);
 
-// ——— HIGH PACKED BLEACHERS at photo vantage (+Z elevated) ———
 const bleacher = new THREE.Group();
 const rows = 8;
+const bleachZ0 = HALL_W / 2 - 2.1;
 for (let row = 0; row < rows; row++) {
   const step = new THREE.Mesh(
     new THREE.BoxGeometry(16, 0.28, 0.85),
     mat(row % 2 ? 0x2e333a : 0x3a4048, { roughness: 0.78 })
   );
-  step.position.set(0, 0.35 + row * 0.48, HALL_W / 2 - 1.6 - row * 0.72);
+  step.position.set(0, 0.35 + row * 0.48, bleachZ0 - row * 0.72);
   step.castShadow = true;
   step.receiveShadow = true;
   bleacher.add(step);
 }
 scene.add(bleacher);
 
-const crowdMat = [
-  mat(0x1f2430), mat(0x2a3140), mat(0x3a2a28), mat(0x243028), mat(0x402828)
-];
-for (let i = 0; i < 56; i++) {
+const crowdMat = [mat(0x1f2430), mat(0x2a3140), mat(0x3a2a28), mat(0x243028), mat(0x402828)];
+const crowdN = IS_IOS ? 40 : 56;
+for (let i = 0; i < crowdN; i++) {
   const row = i % rows;
   const col = Math.floor(i / rows);
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.16 + (i % 3) * 0.02, 0.5 + (i % 4) * 0.04, 4, 8), crowdMat[i % crowdMat.length]);
-  body.position.set(-7 + col * 0.95 + (row % 2) * 0.15, 0.95 + row * 0.48, HALL_W / 2 - 1.6 - row * 0.72);
+  const body = new THREE.Mesh(
+    new THREE.CapsuleGeometry(0.16 + (i % 3) * 0.02, 0.5 + (i % 4) * 0.04, 4, 8),
+    crowdMat[i % crowdMat.length]
+  );
+  body.position.set(-7 + col * 0.95 + (row % 2) * 0.15, 0.95 + row * 0.48, bleachZ0 - row * 0.72);
   body.castShadow = true;
   scene.add(body);
 }
 
-// Cameras + Curt broadcast + 2× Phantom (one each end)
 function cameraRig(x, y, z, lookAt, color = 0x1a1a1a) {
   const g = new THREE.Group();
   const body = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.24, 0.5), mat(color, { metalness: 0.5 }));
@@ -350,9 +384,8 @@ function cameraRig(x, y, z, lookAt, color = 0x1a1a1a) {
   scene.add(g);
   return g;
 }
-cameraRig(7, EAVES - 1.6, 5, new THREE.Vector3(0, 1, 0)); // Curt broadcast beam
+cameraRig(7, EAVES - 1.6, 5, new THREE.Vector3(0, 1, 0));
 cameraRig(-4, EAVES - 1.6, -4, new THREE.Vector3(0, 1, 0));
-// Phantoms — one each baseline end
 cameraRig(COURT_L / 2 + 0.9, 1.55, 0, new THREE.Vector3(0, 1, 0), 0x222266);
 cameraRig(-COURT_L / 2 - 0.9, 1.55, 0, new THREE.Vector3(0, 1, 0), 0x222266);
 
@@ -367,27 +400,44 @@ tripod.position.set(COURT_L / 2 + 1.35, 0, COURT_W / 2 + 1.6);
 scene.add(tripod);
 
 const presets = {
-  orbit: { pos: new THREE.Vector3(6.5, 8.2, 12.5), target: new THREE.Vector3(0, 1.1, 0) },
-  broadcast: { pos: new THREE.Vector3(tripod.position.x + 0.2, 1.65, tripod.position.z + 0.2), target: new THREE.Vector3(0, 1.0, 0) },
-  bleacher: { pos: new THREE.Vector3(0, 5.8, HALL_W / 2 - 0.4), target: new THREE.Vector3(0, 1.2, 0) },
-  wall_l: { pos: new THREE.Vector3(0, 2.9, -(COURT_W / 2 + 1.35) + 4), target: new THREE.Vector3(0, 2.5, -(COURT_W / 2 + 1.35)) },
-  wall_r: { pos: new THREE.Vector3(0, 2.9, (COURT_W / 2 + 1.35) - 4), target: new THREE.Vector3(0, 2.5, COURT_W / 2 + 1.35) },
-  wall_back: { pos: new THREE.Vector3(-HALL_L / 2 + 7, 3.3, 0), target: new THREE.Vector3(-HALL_L / 2 + 0.4, 3.1, 0) },
-  walk: { pos: new THREE.Vector3(HALL_L / 2 - 4, 1.7, 5), target: new THREE.Vector3(0, 1.3, 0) },
+  orbit: { pos: PHOTO.pos.clone(), target: PHOTO.target.clone() },
+  broadcast: {
+    pos: new THREE.Vector3(tripod.position.x + 0.2, 1.65, tripod.position.z + 0.2),
+    target: new THREE.Vector3(0, 1.0, 0),
+  },
+  bleacher: {
+    pos: new THREE.Vector3(0, 6.4, bleachZ0 + 0.15),
+    target: new THREE.Vector3(0, 1.2, 0),
+  },
+  wall_l: {
+    pos: new THREE.Vector3(0, 2.9, -(COURT_W / 2 + 1.35) + 4),
+    target: new THREE.Vector3(0, 2.5, -(COURT_W / 2 + 1.35)),
+  },
+  wall_r: {
+    pos: new THREE.Vector3(0, 2.9, (COURT_W / 2 + 1.35) - 4),
+    target: new THREE.Vector3(0, 2.5, COURT_W / 2 + 1.35),
+  },
+  wall_back: {
+    pos: new THREE.Vector3(-HALL_L / 2 + 7, 3.3, 0),
+    target: new THREE.Vector3(-HALL_L / 2 + 0.4, 3.1, 0),
+  },
+  walk: {
+    pos: new THREE.Vector3(HALL_L / 2 - 5.5, 1.7, 6),
+    target: new THREE.Vector3(0, 1.3, 0),
+  },
 };
 
-let camMode = 'orbit';
 function setCam(mode) {
-  camMode = mode;
   const p = presets[mode];
   if (!p) return;
   camera.position.copy(p.pos);
   controls.target.copy(p.target);
+  controls.enabled = true;
   controls.update();
   document.querySelectorAll('.chip[data-cam]').forEach((el) => {
     el.classList.toggle('on', el.dataset.cam === mode);
   });
-  toast(mode.toUpperCase().replace('_', ' '));
+  toast(`${mode.toUpperCase().replace('_', ' ')} · drag to orbit`);
 }
 document.querySelectorAll('.chip[data-cam]').forEach((el) => {
   el.addEventListener('click', () => setCam(el.dataset.cam));
@@ -405,21 +455,57 @@ function tickSlides(dt) {
   });
 }
 
-addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
+function viewportSize() {
+  const vv = window.visualViewport;
+  return {
+    w: Math.max(1, Math.round(vv?.width ?? innerWidth)),
+    h: Math.max(1, Math.round(vv?.height ?? innerHeight)),
+    left: Math.round(vv?.offsetLeft ?? 0),
+    top: Math.round(vv?.offsetTop ?? 0),
+  };
+}
+
+function fitRenderer() {
+  const { w, h, left, top } = viewportSize();
+  let dpr = Math.min(window.devicePixelRatio || 1, 2);
+  renderer.setPixelRatio(dpr);
+  renderer.setSize(w, h, false);
+  const gl = renderer.getContext();
+  const wantW = Math.floor(w * dpr);
+  const wantH = Math.floor(h * dpr);
+  if (gl.drawingBufferWidth < wantW * 0.85 || gl.drawingBufferHeight < wantH * 0.85) {
+    renderer.setPixelRatio(1);
+    renderer.setSize(w, h, false);
+  }
+  for (const el of [canvas, orbitHit]) {
+    el.style.width = `${w}px`;
+    el.style.height = `${h}px`;
+    el.style.left = `${left}px`;
+    el.style.top = `${top}px`;
+  }
+  camera.aspect = w / h;
   camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
-});
+}
+
+fitRenderer();
+addEventListener('resize', fitRenderer);
+window.visualViewport?.addEventListener('resize', fitRenderer);
+window.visualViewport?.addEventListener('scroll', fitRenderer);
 
 const clock = new THREE.Clock();
 function animate() {
   requestAnimationFrame(animate);
   const dt = clock.getDelta();
-  controls.enabled = camMode === 'orbit' || camMode === 'walk';
+  controls.enabled = true;
   controls.update();
   tickSlides(dt);
-  clockEl.textContent = new Date().toLocaleString('en-AU', { timeZone: 'Australia/Brisbane', hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' AEST';
+  clockEl.textContent = new Date().toLocaleString('en-AU', {
+    timeZone: 'Australia/Brisbane',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }) + ' AEST';
   renderer.render(scene, camera);
 }
 animate();
-toast('HOP SHOW · 3 LEDs (L/R/Back) · packed bleachers · SAMPLE');
+toast('HOP SHOW · drag to orbit · 3 LEDs · SAMPLE');
