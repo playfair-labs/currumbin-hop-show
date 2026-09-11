@@ -95,7 +95,7 @@ scene.fog = null;
 
 const camera = new THREE.PerspectiveCamera(52, 1, 0.12, 180);
 const PHOTO = {
-  pos: new THREE.Vector3(10.2, 6.8, 14.2),
+  pos: new THREE.Vector3(8.4, 5.9, 11.4),
   target: new THREE.Vector3(0, 1.35, -1.6),
 };
 camera.position.copy(PHOTO.pos);
@@ -104,15 +104,15 @@ const controls = new OrbitControls(camera, orbitHit);
 controls.target.copy(PHOTO.target);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
-controls.enablePan = true;
+controls.enablePan = false;
 controls.enableZoom = true;
 controls.enableRotate = true;
 controls.rotateSpeed = 0.92;
 controls.zoomSpeed = 0.9;
-controls.minDistance = 3.2;
-controls.maxDistance = 24;
-controls.minPolarAngle = 0.18;
-controls.maxPolarAngle = Math.PI * 0.48;
+controls.minDistance = 4.5;
+controls.maxDistance = 16;
+controls.minPolarAngle = 0.22;
+controls.maxPolarAngle = Math.PI * 0.46;
 controls.touches.ONE = THREE.TOUCH.ROTATE;
 controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
 controls.update();
@@ -259,10 +259,10 @@ wallPanel(HALL_L, brickH, 0, brickH / 2, -HALL_W / 2, 0, 0x5a534c);
 wallPanel(HALL_W, brickH, HALL_L / 2, brickH / 2, 0, Math.PI / 2, 0x5a534c);
 wallPanel(HALL_W, brickH, -HALL_L / 2, brickH / 2, 0, Math.PI / 2, 0x5a534c);
 const metalH = WALL_H - brickH;
-wallPanel(HALL_L, metalH, 0, brickH + metalH / 2, HALL_W / 2, 0, 0xc8ccd1);
-wallPanel(HALL_L, metalH, 0, brickH + metalH / 2, -HALL_W / 2, 0, 0xe8e4d8);
-wallPanel(HALL_W, metalH, HALL_L / 2, brickH + metalH / 2, 0, Math.PI / 2, 0xc8ccd1);
-wallPanel(HALL_W, metalH, -HALL_L / 2, brickH + metalH / 2, 0, Math.PI / 2, 0xe8e4d8);
+wallPanel(HALL_L, metalH, 0, brickH + metalH / 2, HALL_W / 2, 0, 0x7d848c);
+wallPanel(HALL_L, metalH, 0, brickH + metalH / 2, -HALL_W / 2, 0, 0x8a8578);
+wallPanel(HALL_W, metalH, HALL_L / 2, brickH + metalH / 2, 0, Math.PI / 2, 0x7d848c);
+wallPanel(HALL_W, metalH, -HALL_L / 2, brickH + metalH / 2, 0, Math.PI / 2, 0x8a8578);
 
 const door = new THREE.Mesh(new THREE.BoxGeometry(0.12, 4.2, 3.6), mat(0x6a7078, { metalness: 0.45, roughness: 0.5 }));
 door.position.set(HALL_L / 2 - 0.2, 2.1, 4.5);
@@ -525,10 +525,22 @@ window.visualViewport?.addEventListener('resize', fitRenderer);
 window.visualViewport?.addEventListener('scroll', fitRenderer);
 
 const clock = new THREE.Clock();
+function keepInside() {
+  const limX = HALL_L / 2 - 2.2;
+  const limZ = HALL_W / 2 - 2.2;
+  camera.position.x = THREE.MathUtils.clamp(camera.position.x, -limX, limX);
+  camera.position.z = THREE.MathUtils.clamp(camera.position.z, -limZ, limZ);
+  camera.position.y = THREE.MathUtils.clamp(camera.position.y, 1.35, EAVES - 1.25);
+  controls.target.x = THREE.MathUtils.clamp(controls.target.x, -6, 6);
+  controls.target.z = THREE.MathUtils.clamp(controls.target.z, -8, 6);
+  controls.target.y = THREE.MathUtils.clamp(controls.target.y, 0.6, 2.6);
+}
+
 function animate() {
   requestAnimationFrame(animate);
   const dt = clock.getDelta();
   controls.enabled = true;
+  keepInside();
   controls.update();
   tickSlides(dt);
   clockEl.textContent = new Date().toLocaleString('en-AU', {
