@@ -5,15 +5,11 @@ const canvas = document.getElementById('c');
 const clockEl = document.getElementById('clock');
 const toastEl = document.getElementById('toast');
 
-/** Ads glossary — SAMPLE creatives (not live pitch) */
+/** Ads glossary — SAMPLE creatives only (not live pitch / not locked rates) */
 const SCREEN_MAP = {
-  WALL_L: 'assets/sponsors/WALL_L_2.png',       // PKG_SPOT sample (ACME)
-  WALL_R: 'assets/sponsors/WALL_R_2.png',       // PKG_WALL_TAKEOVER / Balter SAMPLE
-  WALL_BACK: 'assets/sponsors/WALL_BACK.png',   // PKG_TITLE_WRAP
-};
-const HOUSE = {
-  SLEEVE: 'assets/sponsors/WALL_L_1.png',       // OWNED_SLEEVE / RBBR — protected
-  GFI: 'assets/sponsors/WALL_R_1.png',          // OWNED_GFI_ARC — protected
+  WALL_L: 'assets/sponsors/WALL_L.png',         // 1× 3×2 m side Curt
+  WALL_R: 'assets/sponsors/WALL_R.png',         // 1× 3×2 m side Curt
+  WALL_BACK: 'assets/sponsors/WALL_BACK.png',   // 5 m back Curt
 };
 
 const loader = new THREE.TextureLoader();
@@ -31,15 +27,15 @@ const cyclePool = [
   tex(SCREEN_MAP.WALL_L),
   tex(SCREEN_MAP.WALL_R),
   tex(SCREEN_MAP.WALL_BACK),
-  tex(HOUSE.SLEEVE),
-  tex(HOUSE.GFI),
-  tex('assets/sponsors/slide-rbbr.png'),
-  tex('assets/sponsors/slide-gfi.png'),
+  tex('assets/cycle/cycle_SPOT_SINGLE.png'),
+  tex('assets/cycle/cycle_BALTER_SAMPLE.png'),
+  tex('assets/cycle/cycle_WALL_TAKEOVER.png'),
   tex('assets/sponsors/slide-balter.png'),
   tex('assets/sponsors/slide-wall-takeover.png'),
   tex('assets/sponsors/slide-dual-wall.png'),
   tex('assets/sponsors/slide-night-own.png'),
   tex('assets/sponsors/slide-your-brand.png'),
+  tex('assets/sponsors/slide-feed-stack.png'),
 ];
 
 function toast(msg) {
