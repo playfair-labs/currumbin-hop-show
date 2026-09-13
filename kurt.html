@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>HOP · Kurt</title>
+<meta name="robots" content="noindex,nofollow" />
+<style>
+  :root { color-scheme: dark; --led:#c8f542; --ink:#e8ecef; --muted:#9aa3ad; --bg:#0a0c10; --line:rgba(255,255,255,.1); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--ink); font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
+  body { display: flex; flex-direction: column; height: 100dvh; }
+  #top {
+    display: flex; gap: 6px; align-items: center; flex-wrap: nowrap;
+    padding: 8px 10px 8px max(10px, env(safe-area-inset-left));
+    padding-right: max(10px, env(safe-area-inset-right));
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    border-bottom: 1px solid var(--line); background: #0c1016;
+  }
+  .brand { font-size: 12px; font-weight: 700; letter-spacing: .04em; white-space: nowrap; }
+  .brand span { color: var(--led); }
+  .chip, .tab {
+    appearance: none; border: 1px solid var(--line); background: transparent; color: var(--muted);
+    padding: 7px 11px; border-radius: 999px; font-size: 12px; font-weight: 650; white-space: nowrap; cursor: pointer;
+  }
+  .chip.on, .tab.on { color: var(--led); border-color: var(--led); background: rgba(200,245,66,.08); }
+  #stage { flex: 1; position: relative; min-height: 220px; }
+  #c, #orbit-hit { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #orbit-hit { z-index: 1; background: rgba(0,0,0,.003); touch-action: none; }
+  #legend {
+    position: absolute; left: 10px; bottom: 10px; z-index: 2; pointer-events: none;
+    font-size: 11px; line-height: 1.4; color: var(--muted);
+    background: rgba(10,12,16,.78); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px;
+    max-width: 70vw;
+  }
+  #legend b { color: var(--led); font-weight: 650; }
+  #fail { display: none; position: absolute; inset: 0; z-index: 3; align-items: center; justify-content: center; text-align: center; padding: 24px; }
+  #fail.show { display: flex; }
+  #pane { display: none; flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; padding: 14px 16px 40px; padding-bottom: max(40px, env(safe-area-inset-bottom)); }
+  #pane.show { display: block; }
+  #stage.hide { display: none; }
+  h1 { font-size: 20px; font-weight: 650; margin: 4px 0 8px; }
+  .sub { color: var(--muted); font-size: 13px; line-height: 1.45; margin-bottom: 14px; }
+  .q {
+    border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; background: #12161c;
+  }
+  .q h2 { font-size: 15px; font-weight: 650; margin-bottom: 4px; }
+  .q p { font-size: 12px; color: var(--muted); line-height: 1.4; margin-bottom: 8px; }
+  textarea {
+    width: 100%; min-height: 72px; border-radius: 10px; border: 1px solid var(--line);
+    background: #0a0c10; color: var(--ink); font: 16px/1.4 inherit; padding: 10px; resize: vertical;
+  }
+  .row { display: flex; gap: 8px; margin: 12px 0 20px; flex-wrap: wrap; }
+  .btn {
+    appearance: none; border: 0; border-radius: 999px; padding: 10px 16px; font-weight: 700; font-size: 13px; cursor: pointer;
+    background: var(--led); color: #111;
+  }
+  .btn.ghost { background: transparent; color: var(--led); border: 1px solid var(--led); }
+  .amber { color: #f0c14b; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
+</style>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
+</head>
+<body>
+  <div id="top">
+    <div class="brand">HOP · <span>KURT</span></div>
+    <button class="tab on" data-tab="3d" type="button">3D</button>
+    <button class="chip on" data-cam="broadcast" type="button">Broadcast</button>
+    <button class="chip" data-cam="crowd" type="button">Crowd</button>
+    <button class="chip" data-cam="side" type="button">Side</button>
+    <button class="chip" data-cam="orbit" type="button">Orbit</button>
+    <button class="tab" data-tab="ask" type="button">Listen</button>
+  </div>
+  <div id="stage">
+    <canvas id="c"></canvas>
+    <div id="orbit-hit"></div>
+    <div id="legend"><span class="amber">Amber · not measured</span><br><b>WALL_L / WALL_R</b> 3×2 · <b>WALL_BACK</b> 5 m giant<br>This is how a camera sees his screens.</div>
+    <div id="fail">3D didn’t start. Use <b>Listen</b> — the questions still work.</div>
+  </div>
+  <div id="pane">
+    <h1>Listen only</h1>
+    <p class="sub">Beers. Don’t pitch. Don’t kill ProPresenter. Don’t open land, Zeus, or Cirque. Tap a box, then the keyboard mic — or just type. It stays on this phone until you Share.</p>
+    <div class="row">
+      <button class="btn" id="share" type="button">Share notes</button>
+      <button class="btn ghost" id="copy" type="button">Copy all</button>
+    </div>
+    <div id="qs"></div>
+  </div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from './vendor/OrbitControls.js';
+
+const QUESTIONS = [
+  { id: 'drive', q: 'What are you driving the walls with?', hint: 'Let him name it. ProPresenter is our guess. Don’t say we’ll replace it.' },
+  { id: 'pain', q: 'What’s the painful bit — CAD, overlays, get-in?', hint: 'Show me the bit that still takes too long. Listen. Don’t demo a killer.' },
+  { id: 'cad', q: 'Walk me through a typical drawing. Where does the time go?', hint: 'Hours, clicks, revisions. We can make that faster — after we hear it.' },
+  { id: 'giant', q: 'This big screen — size, pitch, inputs, hang or trailer?', hint: 'Width × height × depth. HDMI / SDI. Power. Weight. Spec plate photo if he’ll let you.' },
+  { id: 'hop', q: 'HOP Currumbin — have they asked you for a wall yet?', hint: 'His screens on that back wall. Mutual: his kit, your show. Not a contract tonight.' },
+  { id: 'replay', q: 'Have you ever put last-point / replay on a wall at an event?', hint: 'If yes, how. If no, that’s the gift. Greatest Hits stays in the pocket until he asks to see.' },
+  { id: 'in', q: 'How long to get a wall up and down in a room like this?', hint: 'Wheels vs stills. Crew. Two-hour boast waits until you’ve heard his number.' },
+  { id: 'help', q: 'What would actually make your life easier that nobody’s built?', hint: 'The listen-only offer. Write what he says, not what we wish.' },
+  { id: 'mm', q: 'Can we measure the hall / hang / this cabinet while we’re here?', hint: 'Bosch. Roof to the lowest hanging thing. CAD pages photographed. Only if he wants to.' },
+  { id: 'dump', q: 'Anything else — dump it here', hint: 'Whole conversation, names, numbers, pain. Keyboard mic. Don’t tidy it.' },
+];
+
+const storeKey = 'kurt-hop-notes-13sep';
+function load() { try { return JSON.parse(localStorage.getItem(storeKey) || '{}'); } catch { return {}; } }
+function save(map) { localStorage.setItem(storeKey, JSON.stringify(map)); }
+function dumpText() {
+  const map = load();
+  return QUESTIONS.map((q) => `${q.q}\n${(map[q.id] || '').trim() || '—'}\n`).join('\n');
+}
+
+const qs = document.getElementById('qs');
+const notes = load();
+QUESTIONS.forEach((q) => {
+  const el = document.createElement('div');
+  el.className = 'q';
+  el.innerHTML = `<h2>${q.q}</h2><p>${q.hint}</p>`;
+  const ta = document.createElement('textarea');
+  ta.placeholder = 'Tap, then the mic on the keyboard…';
+  ta.value = notes[q.id] || '';
+  ta.addEventListener('input', () => {
+    const m = load(); m[q.id] = ta.value; save(m);
+  });
+  el.appendChild(ta);
+  qs.appendChild(el);
+});
+
+document.getElementById('copy').onclick = async () => {
+  const t = dumpText();
+  try { await navigator.clipboard.writeText(t); } catch {
+    const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+  }
+};
+document.getElementById('share').onclick = async () => {
+  const t = dumpText();
+  if (navigator.share) {
+    try { await navigator.share({ title: 'Kurt notes', text: t }); return; } catch {}
+  }
+  document.getElementById('copy').click();
+};
+
+const stage = document.getElementById('stage');
+const pane = document.getElementById('pane');
+document.querySelectorAll('.tab').forEach((btn) => {
+  btn.onclick = () => {
+    document.querySelectorAll('.tab').forEach((b) => b.classList.toggle('on', b === btn));
+    const ask = btn.dataset.tab === 'ask';
+    pane.classList.toggle('show', ask);
+    stage.classList.toggle('hide', ask);
+  };
+});
+
+const canvas = document.getElementById('c');
+const hit = document.getElementById('orbit-hit');
+const fail = document.getElementById('fail');
+const IS_IOS = /iP(hone|od|ad)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: !IS_IOS, alpha: false, powerPreference: 'high-performance' });
+} catch {
+  fail.classList.add('show');
+  throw new Error('webgl');
+}
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.setClearColor(0x0a0c10, 1);
+renderer.shadowMap.enabled = false;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0c10);
+const camera = new THREE.PerspectiveCamera(52, 1, 0.15, 120);
+const controls = new OrbitControls(camera, hit);
+controls.enableDamping = true;
+controls.enablePan = false;
+controls.minDistance = 4;
+controls.maxDistance = 18;
+controls.maxPolarAngle = Math.PI * 0.48;
+controls.touches.ONE = THREE.TOUCH.ROTATE;
+controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
+
+function mat(c, extra = {}) {
+  return new THREE.MeshStandardMaterial({ color: c, roughness: 0.82, metalness: 0.08, ...extra });
+}
+scene.add(new THREE.AmbientLight(0xffffff, 0.92));
+const sun = new THREE.DirectionalLight(0xfff3e0, 0.55);
+sun.position.set(8, 14, 6);
+scene.add(sun);
+
+const HALL_L = 32, HALL_W = 24, WALL_H = 7.2;
+const COURT_L = 13.41, COURT_W = 6.1, KITCHEN = 2.13;
+
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(HALL_L, HALL_W), mat(0x2f7a4e));
+floor.rotation.x = -Math.PI / 2;
+scene.add(floor);
+
+function court(x, z) {
+  const g = new THREE.Group();
+  const base = new THREE.Mesh(new THREE.PlaneGeometry(COURT_L + 1.6, COURT_W + 1.4), mat(0x3a8a58));
+  base.rotation.x = -Math.PI / 2; base.position.y = 0.01; g.add(base);
+  const surf = new THREE.Mesh(new THREE.PlaneGeometry(COURT_L, COURT_W), mat(0xd27d56));
+  surf.rotation.x = -Math.PI / 2; surf.position.y = 0.02; g.add(surf);
+  const kit = new THREE.Mesh(new THREE.PlaneGeometry(KITCHEN * 2, COURT_W), mat(0xc86f4a));
+  kit.rotation.x = -Math.PI / 2; kit.position.y = 0.025; g.add(kit);
+  const line = new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.PlaneGeometry(COURT_L, COURT_W)),
+    new THREE.LineBasicMaterial({ color: 0xf7f7f4 })
+  );
+  line.rotation.x = -Math.PI / 2; line.position.y = 0.03; g.add(line);
+  g.position.set(x, 0, z);
+  scene.add(g);
+}
+court(-3.4, 0);
+court(4.2, 0);
+
+const padel = new THREE.Mesh(new THREE.BoxGeometry(10, 3.0, 20), new THREE.MeshStandardMaterial({ color: 0x6e332c, transparent: true, opacity: 0.35, roughness: 0.7 }));
+padel.position.set(-12.2, 1.5, 0);
+scene.add(padel);
+
+function wall(w, h, x, y, z, rotY, c) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.16), mat(c));
+  m.position.set(x, y, z); m.rotation.y = rotY; scene.add(m);
+}
+wall(HALL_L, 2.4, 0, 1.2, HALL_W / 2, 0, 0x5a534c);
+wall(HALL_L, 2.4, 0, 1.2, -HALL_W / 2, 0, 0x5a534c);
+wall(HALL_W, 2.4, HALL_L / 2, 1.2, 0, Math.PI / 2, 0x5a534c);
+wall(HALL_W, 2.4, -HALL_L / 2, 1.2, 0, Math.PI / 2, 0x5a534c);
+wall(HALL_L, 4.4, 0, 4.6, HALL_W / 2, 0, 0x7d848c);
+wall(HALL_L, 4.4, 0, 4.6, -HALL_W / 2, 0, 0x8a8578);
+wall(HALL_W, 4.4, HALL_L / 2, 4.6, 0, Math.PI / 2, 0x7d848c);
+wall(HALL_W, 4.4, -HALL_L / 2, 4.6, 0, Math.PI / 2, 0x8a8578);
+
+const door = new THREE.Mesh(new THREE.BoxGeometry(0.1, 4.0, 3.4), mat(0x6a7078, { metalness: 0.4 }));
+door.position.set(HALL_L / 2 - 0.15, 2.0, 4.2);
+scene.add(door);
+
+function ledTex(label) {
+  const c = document.createElement('canvas');
+  c.width = 1024; c.height = 512;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#111'; ctx.fillRect(0, 0, 1024, 512);
+  ctx.fillStyle = '#c8f542';
+  ctx.font = '700 92px system-ui,sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(label, 512, 200);
+  ctx.font = '500 48px system-ui,sans-serif';
+  ctx.fillStyle = '#e8ecef';
+  ctx.fillText('REPLAY', 512, 320);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.generateMipmaps = false;
+  t.minFilter = THREE.LinearFilter;
+  return t;
+}
+function makeLed(w, h, x, y, z, rotY, label) {
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(w + 0.12, h + 0.12, 0.08), mat(0x111111, { metalness: 0.5 }));
+  frame.position.set(x, y, z); frame.rotation.y = rotY; scene.add(frame);
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: ledTex(label), toneMapped: false }));
+  const n = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), rotY);
+  face.position.set(x, y, z).addScaledVector(n, 0.06);
+  face.rotation.y = rotY;
+  scene.add(face);
+}
+makeLed(3, 2, 4.2, 2.6, -(COURT_W / 2 + 1.4), 0, 'WALL_L');
+makeLed(3, 2, -3.4, 2.6, COURT_W / 2 + 1.4, Math.PI, 'WALL_R');
+makeLed(5, 2.6, -HALL_L / 2 + 0.35, 3.0, 0, Math.PI / 2, 'WALL_BACK');
+
+const bleach = new THREE.Mesh(new THREE.BoxGeometry(14, 2.2, 3.2), mat(0x7a828c));
+bleach.position.set(0, 1.1, HALL_W / 2 - 2.2);
+scene.add(bleach);
+
+const camBody = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.22, 0.48), mat(0x1a1a1a, { metalness: 0.45 }));
+camBody.position.set(COURT_L / 2 + 1.2, 1.5, COURT_W / 2 + 1.7);
+scene.add(camBody);
+
+const presets = {
+  broadcast: { pos: new THREE.Vector3(8.2, 1.65, 5.1), target: new THREE.Vector3(0, 1.15, 0) },
+  crowd: { pos: new THREE.Vector3(0, 5.8, 10.4), target: new THREE.Vector3(0, 1.4, -1) },
+  side: { pos: new THREE.Vector3(12.5, 2.4, 0.2), target: new THREE.Vector3(-2, 1.6, 0) },
+  orbit: { pos: new THREE.Vector3(9.5, 6.2, 9.2), target: new THREE.Vector3(0, 1.3, -0.5) },
+};
+function setCam(mode) {
+  const p = presets[mode];
+  if (!p) return;
+  camera.position.copy(p.pos);
+  controls.target.copy(p.target);
+  controls.update();
+  document.querySelectorAll('.chip[data-cam]').forEach((el) => el.classList.toggle('on', el.dataset.cam === mode));
+}
+document.querySelectorAll('.chip[data-cam]').forEach((el) => {
+  el.onclick = () => setCam(el.dataset.cam);
+});
+setCam('broadcast');
+
+function resize() {
+  const w = canvas.clientWidth || 1, h = canvas.clientHeight || 1;
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+resize();
+(function loop() {
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
